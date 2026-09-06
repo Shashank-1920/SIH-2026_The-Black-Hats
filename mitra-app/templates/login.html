@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M.I.T.R.A - Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card glass">
+            <div class="brand-header">
+                <div class="logo">M.I.T.R.A</div>
+                <p class="subtitle">Medical Intake & Triage with Record Acquisition</p>
+            </div>
+
+            <!-- Login Type Toggle -->
+            <div class="login-toggle">
+                <button class="toggle-btn active" id="btn-patient" onclick="switchTab('patient')">Patient Portal</button>
+                <button class="toggle-btn" id="btn-staff" onclick="switchTab('staff')">Hospital Staff</button>
+            </div>
+
+            <!-- Form Container -->
+            <div class="form-container">
+                <form id="login-form" onsubmit="handleLogin(event)">
+                    
+                    <!-- Dynamic Title based on tab -->
+                    <h3 id="form-title" style="margin-bottom: 1.5rem;">Welcome, Patient</h3>
+
+                    <!-- Optional Staff Type Selector (Only visible in Staff tab) -->
+                    <div id="staff-type-container" class="input-group hidden">
+                        <label>Staff Role</label>
+                        <select id="staff-role" class="input-field">
+                            <option value="desk">Hospital Desk / Nurse</option>
+                            <option value="doctor">Doctor</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label id="label-username">Mobile Number / ABHA ID</label>
+                        <input type="text" id="username" class="input-field" placeholder="Enter your ID" required>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>Password / OTP</label>
+                        <input type="password" id="password" class="input-field" placeholder="Enter password" required>
+                    </div>
+
+                    <div id="error-message" class="error-msg hidden"></div>
+
+                    <button type="submit" class="btn primary full-width mt-2" id="submit-btn">Login to M.I.T.R.A</button>
+                </form>
+            </div>
+            
+            <div class="login-footer">
+                <p>Protected by M.I.T.R.A Clinical Security Architecture</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pass url_for context to JS if needed -->
+    <script>
+        const LOGIN_API_URL = "{{ url_for('api_login') }}";
+    </script>
+    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+</body>
+</html>
