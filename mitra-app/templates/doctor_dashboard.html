@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M.I.T.R.A - Doctor Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .doctor-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr 320px;
+            gap: 1.5rem;
+            margin-top: 5rem;
+            padding: 2rem;
+            height: calc(100vh - 5rem);
+            overflow: hidden;
+        }
+
+        .navbar {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem 3rem;
+            position: fixed;
+            top: 0;
+            z-index: 100;
+            background: rgba(3, 16, 23, 0.7);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .navbar .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            margin-left: 2rem;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: color 0.3s;
+        }
+
+        .navbar .nav-links a:hover {
+            color: var(--accent-white);
+        }
+
+        .panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+        
+        .panel h3 {
+            color: var(--accent-white);
+            font-weight: 400;
+            margin-bottom: 1rem;
+        }
+
+        .queue-item {
+            padding: 1rem;
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-md);
+            margin-bottom: 1rem;
+            cursor: pointer;
+            background: rgba(0,0,0,0.2);
+            transition: all 0.2s;
+        }
+        .queue-item:hover { border-color: var(--accent-blue); }
+        .queue-item.active {
+            background: rgba(2, 132, 199, 0.15);
+            border-color: var(--accent-blue);
+        }
+        
+        .queue-item h4 { color: var(--text-main); margin-bottom: 0.3rem; }
+        .queue-item p { color: var(--text-muted); font-size: 0.8rem; }
+
+        .copilot-section {
+            background: rgba(0,0,0,0.3);
+            border-radius: var(--radius-md);
+            padding: 1.5rem;
+            height: calc(100% - 3rem);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .copilot-chat {
+            flex-grow: 1;
+            overflow-y: auto;
+            margin-bottom: 1rem;
+        }
+        
+        .msg {
+            padding: 0.8rem;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            margin-bottom: 0.8rem;
+            line-height: 1.4;
+        }
+        .msg.sys {
+            background: rgba(13, 148, 136, 0.15);
+            color: #2dd4bf;
+            text-align: center;
+            font-size: 0.8rem;
+        }
+        .msg.ai { background: rgba(2, 132, 199, 0.15); color: var(--text-main); }
+        .msg.user { background: rgba(255,255,255,0.08); color: var(--text-main); }
+        .badge-danger { background: rgba(239,68,68,0.2); color: #fca5a5; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.75rem; }
+        .badge-fact { background: rgba(56,189,248,0.2); color: #38bdf8; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.75rem; }
+        .summary-block { margin-bottom: 1rem; font-size: 0.85rem; line-height: 1.5; }
+        .summary-block h4 { color: var(--accent-white); font-size: 0.9rem; margin-bottom: 0.3rem; }
+        .review-btns { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
+        .review-btns button { flex: 1; min-width: 80px; padding: 0.5rem; border-radius: 8px; border: 1px solid var(--glass-border); cursor: pointer; color: white; background: rgba(255,255,255,0.08); }
+        .queue-item.red-flag { border-left: 3px solid #ef4444; }
+        .copilot-input { display: flex; gap: 0.5rem; margin-top: auto; }
+        .copilot-input input { flex: 1; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">M.I.T.R.A <span style="font-size: 1rem; color: var(--text-muted);">| Clinical Copilot</span></div>
+        <div class="nav-links">
+            <span>{{ user.name }} ({{ user.role|title }})</span>
+            <a href="{{ url_for('logout') }}">Logout</a>
+        </div>
+    </nav>
+
+    <div class="doctor-layout">
+        <!-- Panel 1: Queue -->
+        <div class="panel">
+            <h3>My Patients</h3>
+            {% if appointments %}
+                {% for appt in appointments %}
+                <div class="queue-item" data-appt-id="{{ appt.id }}" onclick="loadPatient({{ appt.id }}, '{{ appt.patient.full_name }}')">
+                    <h4>{{ appt.patient.full_name }}</h4>
+                    <p>{{ appt.time_slot }} | {{ appt.booking_type|title }}</p>
+                    {% if appt.clinical_record and appt.clinical_record.status == 'submitted' %}
+                    <span class="badge-fact">Intake Ready</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-muted">No appointments scheduled.</p>
+            {% endif %}
+            {% if alerts %}
+            <h3 style="margin-top: 1.5rem;">Alerts</h3>
+            {% for alert in alerts %}
+            <div class="queue-item red-flag" style="cursor: default;">
+                <span class="badge-danger">{{ alert.alert_type|replace('_',' ')|title }}</span>
+                <p style="font-size: 0.8rem; margin-top: 0.3rem;">{{ alert.message }}</p>
+            </div>
+            {% endfor %}
+            {% endif %}
+        </div>
+
+        <!-- Panel 2: Main AI Copilot -->
+        <div class="panel">
+            <h3>Live AI Consultation</h3>
+            <div class="copilot-section">
+                <div class="copilot-chat" id="copilot-chat">
+                    <div class="msg sys">M.I.T.R.A Copilot Active. Select a patient to begin.</div>
+                </div>
+                <div class="copilot-input">
+                    <input type="text" id="copilot-input" class="input-field" placeholder="Type consultation note or patient speech..." onkeypress="if(event.key==='Enter')sendCopilot()">
+                    <button class="btn primary" onclick="sendCopilot()">Ask</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel 3: Safety & Summary -->
+        <div class="panel">
+            <h3>Medication Safety</h3>
+            <div id="med-warnings" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                <p style="color: #fca5a5; font-size: 0.85rem;">⚠️ Select a patient to run medication safety checks.</p>
+            </div>
+            
+            <h3>Pre-Consult Summary</h3>
+            <div id="summary-panel">
+                <p class="text-muted" style="font-size: 0.85rem;">Select a patient from the queue to view AI-generated history and OCR extractions.</p>
+            </div>
+            <div class="review-btns" id="review-btns" style="display: none;">
+                <button onclick="doctorReview('approve')" style="border-color: #2dd4bf;">Approve</button>
+                <button onclick="doctorReview('modify')" style="border-color: #fcd34d;">Modify</button>
+                <button onclick="doctorReview('reject')" style="border-color: #ef4444;">Reject</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let activeApptId = null;
+
+        async function loadPatient(apptId, name) {
+            activeApptId = apptId;
+            document.querySelectorAll('.queue-item[data-appt-id]').forEach(el => el.classList.remove('active'));
+            document.querySelector(`.queue-item[data-appt-id="${apptId}"]`)?.classList.add('active');
+
+            try {
+                const res = await fetch(`/api/ai/summary/${apptId}`);
+                const data = await res.json();
+                if (!data.success) {
+                    document.getElementById('summary-panel').innerHTML = '<p class="text-muted">No AI analysis yet. Patient may not have completed intake.</p>';
+                    return;
+                }
+
+                const a = data.analysis;
+                document.getElementById('summary-panel').innerHTML = `
+                    <div class="summary-block"><h4>Chief Complaint</h4><p>${data.chief_complaint || '—'}</p></div>
+                    <div class="summary-block"><h4><span class="badge-fact">Observed Facts</span></h4>
+                        <ul>${(a.observed_facts||[]).map(f=>`<li>${f}</li>`).join('')||'<li>None</li>'}</ul></div>
+                    <div class="summary-block"><h4><span class="badge-danger">Potential Concerns</span></h4>
+                        <ul>${(a.potential_concerns||[]).map(f=>`<li>${f}</li>`).join('')||'<li>None</li>'}</ul></div>
+                    <div class="summary-block"><h4>Hypotheses (AI — not diagnosis)</h4>
+                        <ul>${(a.hypotheses||[]).map(h=>`<li>${h.text} (${Math.round(h.confidence*100)}%)</li>`).join('')||'<li>None</li>'}</ul></div>
+                    <div class="summary-block"><h4>Uncertainty</h4>
+                        <ul>${(a.uncertainty||[]).map(u=>`<li>${u}</li>`).join('')}</ul></div>
+                    <div class="summary-block"><h4>Evidence & Engine</h4>
+                        <p class="text-muted" style="font-size: 0.78rem;">${a.engine?.source || 'rule_based'} | Doctor review required</p>
+                        <ul>${(a.evidence||[]).map(e=>`<li>${e.source}: ${e.field}${e.document_type ? ` (${e.document_type})` : ''}</li>`).join('')||'<li>No linked evidence</li>'}</ul>
+                    </div>
+                    <p class="text-muted" style="font-size: 0.75rem;">Analysis v${data.version} | Status: ${data.doctor_status}</p>
+                `;
+                document.getElementById('review-btns').style.display = 'flex';
+
+                const medRes = await fetch('/api/ai/medication-check', {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ appointment_id: apptId })
+                });
+                const medData = await medRes.json();
+                if (medData.success) {
+                    document.getElementById('med-warnings').innerHTML = medData.warnings.map(w =>
+                        `<p style="color: ${w.severity==='high'?'#fca5a5':'#fcd34d'}; font-size: 0.85rem; margin-bottom: 0.5rem;">⚠️ ${w.message}</p>`
+                    ).join('');
+                }
+
+                document.getElementById('copilot-chat').innerHTML =
+                    `<div class="msg sys">Consultation started with ${name}. Copilot ready.</div>`;
+            } catch (e) {
+                alert('Failed to load patient summary.');
+            }
+        }
+
+        async function sendCopilot() {
+            if (!activeApptId) { alert('Select a patient first.'); return; }
+            const input = document.getElementById('copilot-input');
+            const msg = input.value.trim();
+            if (!msg) return;
+            const chat = document.getElementById('copilot-chat');
+            chat.innerHTML += `<div class="msg user">${msg}</div>`;
+            input.value = '';
+            const res = await fetch('/api/ai/copilot', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ appointment_id: activeApptId, message: msg })
+            });
+            const data = await res.json();
+            if (data.success) {
+                let html = `<div class="msg ai"><strong>Copilot:</strong> ${data.suggestion}</div>`;
+                if (data.translation) html += `<div class="msg sys">Translation: ${data.translation}</div>`;
+                if (data.follow_up_questions?.length) {
+                    html += `<div class="msg ai"><strong>Follow-up:</strong> ${data.follow_up_questions.join('; ')}</div>`;
+                }
+                chat.innerHTML += html;
+                chat.scrollTop = chat.scrollHeight;
+            }
+        }
+
+        async function doctorReview(action) {
+            if (!activeApptId) return;
+            const res = await fetch('/api/ai/review', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({
+                    appointment_id: activeApptId, action,
+                    diagnosis: 'Chest discomfort — clinical correlation pending ECG',
+                    medications: 'Continue Amlodipine 5mg once daily unless modified',
+                    precautions: 'Avoid strenuous activity. Return if symptoms worsen.',
+                    follow_up: 'Follow up in 1 week or sooner if needed'
+                })
+            });
+            const data = await res.json();
+            alert(data.message || 'Review saved.');
+            loadPatient(activeApptId, '');
+        }
+    </script>
+</body>
+</html>
