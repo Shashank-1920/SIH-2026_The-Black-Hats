@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M.I.T.R.A - Patient Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* Additional specific styles for the dashboard to match the glassmorphism theme */
+        .dashboard-container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2rem;
+            z-index: 10;
+        }
+
+        @media (max-width: 900px) {
+            .dashboard-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .navbar {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem 3rem;
+            position: fixed;
+            top: 0;
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.92);
+            -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .navbar .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            margin-left: 2rem;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: color 0.3s;
+        }
+
+        .navbar .nav-links a:hover {
+            color: var(--accent-white);
+        }
+
+        .main-content {
+            margin-top: 5rem; /* offset for fixed navbar */
+            padding-bottom: 4rem;
+        }
+
+        .page-header {
+            margin-bottom: 2.5rem;
+        }
+
+        .page-header h1 {
+            font-size: 2.5rem;
+            font-weight: 300;
+            color: var(--accent-white);
+            margin-bottom: 0.5rem;
+        }
+
+        .doctor-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .doc-card {
+            background: rgba(255, 255, 255, 0.78);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-md);
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .doc-card:hover {
+            border-color: var(--accent-blue);
+            background: #ffffff;
+            transform: translateY(-2px);
+        }
+
+        .doc-header h3 {
+            color: var(--accent-white);
+            font-size: 1.1rem;
+            margin-bottom: 0.2rem;
+        }
+
+        .doc-rating {
+            display: inline-block;
+            background: #d1fae5;
+            color: #087a6d;
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-top: 0.5rem;
+        }
+
+        .badge-quick {
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-green));
+            text-align: center;
+            cursor: pointer;
+        }
+
+        .timeline-item {
+            border-left: 2px solid var(--glass-border);
+            padding-left: 1.5rem;
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: var(--accent-blue);
+            border-radius: 50%;
+            left: -6px;
+            top: 5px;
+            box-shadow: 0 0 10px var(--accent-blue);
+        }
+
+        .timeline-date {
+            font-size: 0.8rem;
+            color: var(--accent-green);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.3rem;
+        }
+        .patient-ai-box { margin-top: 2rem; }
+        .appointment-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin: 1rem 0 1.5rem; }
+        .appointment-controls label { font-size: 0.75rem; color: var(--text-muted); align-self: end; }
+        .patient-plan-box { margin-top: 1.75rem; padding: 1rem; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: var(--radius-md); }
+        .plan-task { padding: 0.7rem 0; border-bottom: 1px solid #bbf7d0; color: var(--text-main); font-size: 0.85rem; }
+        .plan-task:last-child { border-bottom: none; }
+        .records-box { margin-top: 1.75rem; padding: 1rem; background: #f8fafc; border: 1px solid var(--glass-border); border-radius: var(--radius-md); }
+        .records-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.75rem 0; }
+        .record-item { padding: 0.7rem 0; border-bottom: 1px solid #e2e8f0; font-size: 0.82rem; }
+        .record-item:last-child { border-bottom: none; }
+        .record-meta { color: var(--text-muted); font-size: 0.74rem; }
+        .record-summary { margin-top: 0.75rem; padding: 0.75rem; background: #ecfdf5; border-radius: var(--radius-sm); font-size: 0.82rem; }
+        .patient-ai-chat { background: #f1f5f9; border-radius: 8px; padding: 1rem; height: 180px; overflow-y: auto; margin-bottom: 1rem; font-size: 0.85rem; }
+        .pa-msg { margin-bottom: 0.5rem; padding: 0.5rem; border-radius: 8px; }
+        .pa-msg.user { background: rgba(13,148,136,0.15); text-align: right; }
+        .pa-msg.ai { background: rgba(2,132,199,0.15); }
+        @media (max-width: 700px) {
+            .navbar { padding: 1rem; flex-wrap: wrap; gap: 0.5rem; }
+            .navbar .nav-links { display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem; }
+            .navbar .nav-links a { margin-left: 0.35rem; }
+            .main-content { margin-top: 4rem; }
+            .appointment-controls { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="logo">M.I.T.R.A</div>
+        <div class="nav-links">
+            <span>{{ user.name }} ({{ user.role|title }})</span>
+            <button class="language-switch" id="language-switch" onclick="toggleDashboardLanguage()">తెలుగు</button>
+            <a href="{{ url_for('logout') }}" data-i18n="logout">Logout</a>
+        </div>
+    </nav>
+
+    <div class="main-content">
+        <div class="dashboard-container">
+            
+            <!-- Left Column: Booking & Intake -->
+            <div>
+                <div class="page-header">
+                    <h1>Welcome, {{ user.name.split(' ')[0] }}</h1>
+                    <p class="subtitle" data-i18n="patient_subtitle">Your Health Dashboard</p>
+                </div>
+
+                <div class="glass mb-4">
+                    <h3 id="form-title" class="form-heading" data-i18n="book_appointment">Book an Appointment</h3>
+                    <p class="text-muted form-copy" data-i18n="appointment_hint">Select a specialist or request an immediate triage routing.</p>
+                    <div class="appointment-controls">
+                        <label for="appointment-date">Appointment date</label>
+                        <input id="appointment-date" class="input-field" type="date" min="{{ today }}" value="{{ today }}">
+                        <label for="appointment-time">Time slot</label>
+                        <select id="appointment-time" class="input-field">
+                            <option value="10:00 AM - 11:00 AM">10:00 AM - 11:00 AM</option>
+                            <option value="11:00 AM - 12:00 PM">11:00 AM - 12:00 PM</option>
+                            <option value="2:00 PM - 3:00 PM">2:00 PM - 3:00 PM</option>
+                            <option value="4:00 PM - 5:00 PM">4:00 PM - 5:00 PM</option>
+                        </select>
+                    </div>
+                    {% if latest_appt %}
+                    <a class="btn secondary-action" href="{{ url_for('patient_intake', appt_id=latest_appt.id) }}">Start Optional Clinical Intake</a>
+                    <button class="btn emergency-button" id="emergency-button" data-appointment-id="{{ latest_appt.id }}">Emergency: Contact Hospital Desk</button>
+                    <p class="text-muted text-small emergency-hint">Use this only if you need urgent hospital assistance. The desk will call and confirm.</p>
+                    {% endif %}
+                    
+                    <!-- Quick Appointment -->
+                    <div class="doc-card badge-quick" onclick="bookQuickAppointment('Cardiology')">
+                        <h3 class="quick-title" data-i18n="quick_appointment">⚡ Quick Appointment</h3>
+                        <p class="quick-copy" data-i18n="quick_hint">Don't want to wait? Let M.I.T.R.A assign you to the first available doctor.</p>
+                    </div>
+
+                    <h4 class="specialist-label" data-i18n="specialists">Available Specialists</h4>
+                    
+                    <div class="doctor-list">
+                        {% for doc in doctors %}
+                        <div class="doc-card">
+                            <div class="doc-header">
+                                <h3>{{ doc.name }}</h3>
+                                <p class="text-muted text-small">{{ doc.department }} | {{ doc.hospital }}</p>
+                                <div class="doc-rating">⭐ {{ doc.rating }} ({{ doc.reviews }} Reviews)</div>
+                            </div>
+                                <button class="btn primary full-width button-spaced" data-doctor-id="{{ doc.id }}" data-doctor-name="{{ doc.name }}" data-i18n="book_online">
+                                Book Online
+                            </button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Medical Timeline -->
+            <div>
+                <div class="glass summary-panel">
+                    <h3 id="form-title" class="timeline-heading" data-i18n="medical_timeline">Medical Timeline</h3>
+                    
+                    <div class="timeline-item">
+                        <div class="timeline-date">August 2026</div>
+                        <h4 class="timeline-title">Cardiology Review</h4>
+                        <p class="text-muted timeline-copy">Dr. Arjun Patel<br>Prescribed Amlodipine 5mg.</p>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timeline-date">March 2024</div>
+                        <h4 class="timeline-title">Lab Report Uploaded</h4>
+                        <p class="text-muted timeline-copy">Verified by AI. Hb: 9.2 g/dL (Low).</p>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timeline-date">2021</div>
+                        <h4 class="timeline-title">Appendectomy</h4>
+                        <p class="text-muted timeline-copy">Surgical History recorded.</p>
+                    </div>
+
+                    <div class="patient-plan-box">
+                        <h4 class="timeline-title" data-i18n="care_plan">Care Plan To-Do List</h4>
+                        {% if certified_record %}
+                        <div class="plan-task"><span>□</span><strong>Medicine:</strong> {{ certified_record.medications or 'Follow your doctor-approved medicine plan.' }}</div>
+                        <div class="plan-task"><span>□</span><strong>Schedule:</strong> {{ certified_record.medication_schedule or 'Take medicines only as prescribed.' }}</div>
+                        <div class="plan-task"><span>□</span><strong>Diet:</strong> {{ certified_record.diet or 'Follow the diet guidance provided by your doctor.' }}</div>
+                        {% else %}
+                        <p class="text-muted text-small">Your medicine and diet plan will appear here after doctor certification.</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="records-box">
+                        <h4 class="timeline-title">Medical Records</h4>
+                        <p class="text-muted text-small">Upload new reports anytime. They are processed separately from clinical intake.</p>
+                        <div class="records-actions">
+                            <button class="btn secondary-action" onclick="uploadPatientRecord('lab_report')">Upload Lab Report</button>
+                            <button class="btn secondary-action" onclick="uploadPatientRecord('prescription')">Upload Prescription</button>
+                            <button class="btn secondary-action" onclick="summarizePatientRecords()">Summarize My Records</button>
+                        </div>
+                        <div id="record-summary" class="record-summary hidden"></div>
+                        <div id="patient-record-list">
+                        {% for document in patient_documents %}
+                        <div class="record-item"><strong>{{ document.filename }}</strong><div class="record-meta">{{ document.doc_type|replace('_', ' ')|title }} | {{ 'Verified' if document.is_verified else 'Awaiting confirmation' }} | {{ document.created_at.strftime('%d %b %Y, %I:%M %p') if document.created_at else 'Date pending' }}</div></div>
+                        {% else %}
+                        <p class="text-muted text-small">No records uploaded yet.</p>
+                        {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="patient-ai-box">
+                        <h4 class="quick-title" data-i18n="patient_ai">Patient AI</h4>
+                        <p class="text-muted text-tiny form-copy" data-i18n="patient_ai_hint">Answers from doctor-approved information only.</p>
+                        <div class="patient-ai-chat" id="patient-ai-chat">
+                            <div class="pa-msg ai">Ask about your medications, precautions, or follow-up after your doctor certifies your record.</div>
+                        </div>
+                        <div class="flex-gap">
+                            <input type="text" id="patient-ai-input" class="input-field flex-input" placeholder="What precautions should I follow?" data-i18n-placeholder="patient_ai_placeholder" onkeypress="if(event.key==='Enter')askPatientAI()">
+                            <button class="btn primary" onclick="askPatientAI()" data-i18n="ask">Ask</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const latestApptId = {{ latest_appt.id if latest_appt else 'null' }};
+        const dashboardTranslations = {
+            en: {logout:'Logout', patient_subtitle:'Your Health Dashboard', book_appointment:'Book an Appointment', appointment_hint:'Select a specialist or request an immediate triage routing.', quick_appointment:'⚡ Quick Appointment', quick_hint:"Don't want to wait? Let M.I.T.R.A assign you to the first available doctor.", specialists:'Available Specialists', book_online:'Book Online', medical_timeline:'Medical Timeline', care_plan:'Care Plan To-Do List', patient_ai:'Patient AI', patient_ai_hint:'Answers from doctor-approved information only.', patient_ai_placeholder:'What precautions should I follow?', ask:'Ask'},
+            te: {logout:'లాగ్ అవుట్', patient_subtitle:'మీ ఆరోగ్య డాష్‌బోర్డ్', book_appointment:'అపాయింట్‌మెంట్ బుక్ చేయండి', appointment_hint:'నిపుణుడిని ఎంచుకోండి లేదా తక్షణ ట్రయాజ్ కోసం అభ్యర్థించండి.', quick_appointment:'⚡ త్వరిత అపాయింట్‌మెంట్', quick_hint:'వేచి ఉండకూడదా? మొదట అందుబాటులో ఉన్న వైద్యుడిని M.I.T.R.A కేటాయిస్తుంది.', specialists:'అందుబాటులో ఉన్న నిపుణులు', book_online:'ఆన్‌లైన్‌లో బుక్ చేయండి', medical_timeline:'వైద్య కాలక్రమం', care_plan:'సంరక్షణ ప్రణాళిక పనుల జాబితా', patient_ai:'పేషెంట్ AI', patient_ai_hint:'వైద్యుడు ఆమోదించిన సమాచారం నుండి మాత్రమే సమాధానాలు.', patient_ai_placeholder:'నేను ఏ జాగ్రత్తలు పాటించాలి?', ask:'అడగండి'},
+            ta: {logout:'வெளியேறு', patient_subtitle:'உங்கள் சுகாதார டாஷ்போர்டு', book_appointment:'சந்திப்பை முன்பதிவு செய்யவும்', appointment_hint:'நிபுணரை தேர்வு செய்யவும் அல்லது உடனடி பரிசோதனைக்கு கோரிக்கை விடுக்கவும்.', quick_appointment:'⚡ விரைவு சந்திப்பு', quick_hint:'காத்திருக்க வேண்டாமா? முதலில் கிடைக்கும் மருத்துவரை M.I.T.R.A ஒதுக்கும்.', specialists:'கிடைக்கும் நிபுணர்கள்', book_online:'ஆன்லைனில் முன்பதிவு', medical_timeline:'மருத்துவ காலவரிசை', care_plan:'சிகிச்சை திட்ட செய்ய வேண்டியவை', patient_ai:'நோயாளி AI', patient_ai_hint:'மருத்துவர் அங்கீகரித்த தகவல்களில் இருந்து மட்டுமே பதில்கள்.', patient_ai_placeholder:'நான் என்ன முன்னெச்சரிக்கைகளை பின்பற்ற வேண்டும்?', ask:'கேட்கவும்'}
+        };
+        const languageOrder = ['en', 'te', 'ta'];
+        let dashboardLanguage = 'en';
+        function toggleDashboardLanguage() {
+            dashboardLanguage = languageOrder[(languageOrder.indexOf(dashboardLanguage) + 1) % languageOrder.length];
+            document.querySelectorAll('[data-i18n]').forEach(element => { element.innerText = dashboardTranslations[dashboardLanguage][element.dataset.i18n]; });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(element => { element.placeholder = dashboardTranslations[dashboardLanguage][element.dataset.i18nPlaceholder]; });
+            document.getElementById('language-switch').innerText = {en:'తెలుగు', te:'தமிழ்', ta:'English'}[dashboardLanguage];
+        }
+
+        async function askPatientAI() {
+            if (!latestApptId) { alert('Book an appointment and complete intake first.'); return; }
+            const input = document.getElementById('patient-ai-input');
+            const q = input.value.trim();
+            if (!q) return;
+            const chat = document.getElementById('patient-ai-chat');
+            chat.innerHTML += `<div class="pa-msg user">${q}</div>`;
+            input.value = '';
+            const res = await fetch('/api/ai/patient-chat', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ appointment_id: latestApptId, question: q })
+            });
+            const data = await res.json();
+            if (data.success) {
+                chat.innerHTML += `<div class="pa-msg ai">${data.answer}</div>`;
+                chat.scrollTop = chat.scrollHeight;
+            }
+        }
+
+        async function uploadPatientRecord(docType) {
+            const filename = docType === 'prescription' ? 'prescription_scan.jpg' : 'lab_report.pdf';
+            const response = await fetch('/api/ai/documents/process', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({filename, doc_type: docType})
+            });
+            const data = await response.json();
+            if (!data.success) { alert(data.message || 'Record upload failed.'); return; }
+            const confirmed = (data.extractions || []).map(item => ({...item, status: 'confirmed'}));
+            const verifyResponse = await fetch('/api/ai/documents/verify', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({document_id: data.document_id, verified_items: confirmed})
+            });
+            const verifyData = await verifyResponse.json();
+            alert(verifyData.success ? 'Record processed and verified for your timeline.' : 'Record uploaded and awaiting verification.');
+            if (verifyData.success) window.location.reload();
+        }
+
+        async function summarizePatientRecords() {
+            const response = await fetch('/api/ai/patient-record-summary');
+            const data = await response.json();
+            const panel = document.getElementById('record-summary');
+            if (!data.success) { panel.innerText = data.message || 'Could not summarize records.'; panel.classList.remove('hidden'); return; }
+            panel.innerHTML = `<strong>${data.summary}</strong><ul>${(data.documents || []).map(item => `<li>${item.date ? new Date(item.date).toLocaleString() : 'Date pending'} - ${item.field}: ${item.value}</li>`).join('') || '<li>No verified findings.</li>'}</ul>`;
+            panel.classList.remove('hidden');
+        }
+
+        async function bookSpecificDoctor(doctorId, doctorName) {
+            const timeSlot = "10:00 AM - 11:00 AM"; // Simplified for UI testing
+            
+            try {
+                const response = await fetch('/api/appointments/book', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        booking_type: 'online',
+                        doctor_id: doctorId,
+                        time_slot: document.getElementById('appointment-time').value,
+                        appointment_date: document.getElementById('appointment-date').value
+                    })
+                });
+                
+                const data = await response.json();
+                if(data.success) {
+                    const analysisNote = data.document_analysis_created ? ' Your verified records were analyzed for the doctor.' : '';
+                    alert(`✅ Success! You are booked with ${doctorName}.${analysisNote} Clinical intake is optional; you can start it from your dashboard.`);
+                    window.location.reload();
+                } else {
+                    alert(`❌ Failed: ${data.message}`);
+                }
+            } catch (e) {
+                alert("An error occurred while booking.");
+            }
+        }
+
+        async function bookQuickAppointment(department) {
+            try {
+                const response = await fetch('/api/appointments/book', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        booking_type: 'online',
+                        department: department,
+                        time_slot: document.getElementById('appointment-time').value,
+                        appointment_date: document.getElementById('appointment-date').value
+                    })
+                });
+                
+                const data = await response.json();
+                if(data.success) {
+                    const analysisNote = data.document_analysis_created ? ' Your verified records were analyzed for the doctor.' : '';
+                    alert(`⚡ ${data.message}${analysisNote} Clinical intake is optional; you can start it from your dashboard.`);
+                    window.location.reload();
+                } else {
+                    alert(`❌ Failed: ${data.message}`);
+                }
+            } catch (e) {
+                alert("An error occurred while booking.");
+            }
+        }
+
+        document.querySelectorAll('[data-doctor-id]').forEach(button => {
+            button.addEventListener('click', () => bookSpecificDoctor(button.dataset.doctorId, button.dataset.doctorName));
+        });
+        document.getElementById('emergency-button')?.addEventListener('click', async event => {
+            if (!confirm('Ask the hospital desk to contact you for emergency assistance?')) return;
+            const response = await fetch('/api/appointments/emergency', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({appointment_id: event.currentTarget.dataset.appointmentId, note: 'Patient requested urgent contact.'})
+            });
+            const data = await response.json();
+            alert(data.message || 'Emergency request submitted.');
+            if (data.success) event.currentTarget.disabled = true;
+        });
+    </script>
+</body>
+</html>
