@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M.I.T.R.A - Hospital Desk Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .dashboard-container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2rem;
+            z-index: 10;
+        }
+
+        @media (max-width: 900px) {
+            .dashboard-container { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 700px) {
+            .navbar { padding: 1rem; flex-wrap: wrap; gap: 0.5rem; }
+            .navbar .nav-links { display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem; }
+            .navbar .nav-links a { margin-left: 0.35rem; }
+            .main-content { margin-top: 4rem; }
+        }
+
+        .navbar {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem 3rem;
+            position: fixed;
+            top: 0;
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.92);
+            -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .navbar .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            margin-left: 2rem;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: color 0.3s;
+        }
+
+        .navbar .nav-links a:hover {
+            color: var(--accent-white);
+        }
+
+        .main-content {
+            margin-top: 5rem;
+            padding-bottom: 4rem;
+        }
+
+        .page-header {
+            margin-bottom: 2.5rem;
+        }
+
+        .page-header h1 {
+            font-size: 2.5rem;
+            font-weight: 300;
+            color: var(--accent-white);
+            margin-bottom: 0.5rem;
+        }
+
+        .appt-card {
+            background: rgba(255, 255, 255, 0.78);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-md);
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .appt-card h3 {
+            color: var(--accent-white);
+            font-size: 1.1rem;
+            margin-bottom: 0.2rem;
+        }
+        
+        .status-badge {
+            padding: 0.3rem 0.8rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        .status-scheduled { background: rgba(56, 189, 248, 0.2); color: #38bdf8; }
+        .status-rerouted { background: #fef3c7; color: #92400e; }
+
+        .doc-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 0;
+            border-bottom: 1px solid var(--glass-border);
+        }
+        .doc-list-item:last-child { border-bottom: none; }
+        .btn-failsafe {
+            background: rgba(239, 68, 68, 0.15);
+            color: #b4233d;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            padding: 0.5rem 1rem;
+        }
+        .btn-failsafe:hover {
+            background: #b4233d;
+            color: #ffffff;
+        }
+        .alert-card {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: var(--radius-md);
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+        }
+        .alert-card.medium { background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.3); }
+        .queue-heading { color: var(--accent-white); margin-bottom: 1.5rem; font-weight: 400; }
+        .alert-heading { color: var(--accent-white); margin-bottom: 1rem; font-weight: 400; }
+        .alert-copy { color: var(--text-muted); font-size: 0.85rem; margin: 0.3rem 0; }
+        .management-heading { color: var(--accent-white); margin-bottom: 1.5rem; font-weight: 400; }
+        .management-copy { font-size: 0.85rem; margin-bottom: 1.5rem; }
+        .doctor-name { color: var(--text-main); }
+        .emergency-card { border-left: 4px solid #b4233d; }
+        .schedule-row { padding: 0.7rem 0; border-bottom: 1px solid var(--glass-border); }
+        .booking-form { display: grid; gap: 0.75rem; }
+        .section-spaced { margin-top: 2rem; }
+        .schedule-grid { display: grid; gap: 1rem; }
+        .schedule-card { border: 1px solid var(--glass-border); border-radius: var(--radius-md); background: #ffffff; overflow: hidden; }
+        .schedule-card-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem; background: #f1f5f9; border-bottom: 1px solid var(--glass-border); }
+        .schedule-card-header h4 { color: var(--text-main); margin-bottom: 0.25rem; }
+        .schedule-count { color: var(--accent-blue); background: #dbeafe; border-radius: 999px; padding: 0.3rem 0.6rem; font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
+        .schedule-list { padding: 0.25rem 1rem; }
+        .schedule-entry { display: grid; grid-template-columns: 132px 1fr auto; gap: 1rem; align-items: center; padding: 0.85rem 0; border-bottom: 1px solid #e2e8f0; }
+        .schedule-entry:last-child { border-bottom: none; }
+        .schedule-time { color: var(--accent-blue); font-size: 0.78rem; font-weight: 700; }
+        .schedule-patient { color: var(--text-main); font-weight: 600; font-size: 0.86rem; }
+        .schedule-patient small { display: block; color: var(--text-muted); font-weight: 400; margin-top: 0.2rem; }
+        .schedule-priority { color: #b4233d; background: #fee2e2; border-radius: 999px; padding: 0.25rem 0.5rem; font-size: 0.68rem; font-weight: 700; }
+        .schedule-empty { padding: 1rem; color: var(--text-muted); font-size: 0.85rem; }
+        @media (max-width: 650px) { .schedule-entry { grid-template-columns: 1fr auto; gap: 0.35rem; } .schedule-time { grid-column: 1 / -1; } }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">M.I.T.R.A</div>
+        <div class="nav-links">
+            <span>{{ user.name }} ({{ user.role|title }})</span>
+            <button class="language-switch" id="language-switch" onclick="toggleDashboardLanguage()">తెలుగు</button>
+            <a href="{{ url_for('logout') }}" data-i18n="logout">Logout</a>
+        </div>
+    </nav>
+
+    <div class="main-content">
+        <div class="dashboard-container">
+            <!-- Left: Today's OPD Queue -->
+            <div>
+                <div class="page-header">
+                    <h1 data-i18n="hospital_desk">Hospital Desk</h1>
+                    <p class="subtitle" data-i18n="opd_queue">OPD Queue & Appointments</p>
+                </div>
+                
+                <div class="glass">
+                    <h3 class="queue-heading" data-i18n="active_queue">Active Queue</h3>
+                    {% if appointments %}
+                        {% for appt in appointments %}
+                        <div class="appt-card">
+                            <div>
+                                <h3>{{ appt.patient.full_name }}</h3>
+                                <p class="text-muted text-small">Patient ID: {{ appt.patient.username }} | Contact: <a href="tel:{{ appt.patient.phone_number }}">{{ appt.patient.phone_number or 'Not provided' }}</a></p>
+                                <p class="text-muted text-small">{{ appt.appointment_date or 'Date pending' }} | Dr. {{ appt.doctor.full_name }} | {{ appt.time_slot }}</p>
+                                {% if appt.clinical_record %}
+                                <p class="text-muted text-tiny">Intake: {{ appt.clinical_record.status|replace('_',' ')|title }}</p>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <span class="status-badge {% if appt.status == 'scheduled' %}status-scheduled{% else %}status-rerouted{% endif %}">
+                                    {{ appt.status }}
+                                </span>
+                                {% if appt.status == 're-routed' %}
+                                <button class="btn-small mt-alert revert-button" data-appointment-id="{{ appt.id }}">Revert Failsafe</button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted" data-i18n="no_appointments_hospital">No appointments found for this hospital.</p>
+                    {% endif %}
+                </div>
+
+                <div class="glass panel-padding-large section-spaced">
+                    <h3 class="management-heading">Doctor-wise Schedule</h3>
+                    <div class="schedule-grid">
+                    {% for doctor_id, schedule in schedules.items() %}
+                    <div class="schedule-card">
+                        <div class="schedule-card-header">
+                            <div><h4>{{ schedule.name }}</h4><span class="text-muted text-small">{{ schedule.department }}</span></div>
+                            <span class="schedule-count">{{ schedule.appointments|length }} booked</span>
+                        </div>
+                        <div class="schedule-list">
+                        {% for appt in schedule.appointments %}
+                        <div class="schedule-entry">
+                            <div class="schedule-time">{{ appt.appointment_date }}<br>{{ appt.time_slot }}</div>
+                            <div class="schedule-patient">{{ appt.patient.full_name }}<small>{{ appt.patient.username }} | {{ appt.status|title }}</small></div>
+                            {% if appt.priority > 0 %}<span class="schedule-priority">PRIORITY</span>{% endif %}
+                        </div>
+                        {% else %}
+                        <div class="schedule-empty">No appointments scheduled.</div>
+                        {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Alerts & Doctor Management -->
+            <div>
+                {% if alerts %}
+                <div class="glass panel-padding">
+                    <h3 class="alert-heading" data-i18n="priority_alerts">Priority Alerts</h3>
+                    {% for alert in alerts %}
+                    <div class="alert-card {% if alert.severity != 'high' %}medium{% endif %}" data-appointment-id="{{ alert.appointment_id }}">
+                        <strong class="text-alert text-small">{{ alert.alert_type|replace('_',' ')|title }}</strong>
+                        <p class="alert-copy">{{ alert.message }}</p>
+                        <p class="text-muted text-micro">Patient: {{ alert.appointment.patient.full_name if alert.appointment else '—' }}</p>
+                        <button class="btn-small mt-alert acknowledge-button" data-alert-id="{{ alert.id }}" data-i18n="acknowledge">Acknowledge</button>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <div class="glass panel-padding-large">
+                    <h3 class="management-heading">Book for Patient</h3>
+                    <div class="booking-form">
+                        <input id="desk-patient-name" class="input-field" type="text" placeholder="Patient name or Patient ID" aria-label="Patient name or Patient ID" required>
+                        <input id="desk-patient-phone" class="input-field" type="tel" placeholder="Phone number for a new patient" aria-label="Phone number for a new patient">
+                        <select id="desk-doctor" class="input-field" aria-label="Doctor">
+                            {% for doc in doctors %}<option value="{{ doc.user_id }}">{{ doc.user.full_name }} - {{ doc.department }}</option>{% endfor %}
+                        </select>
+                        <input id="desk-date" class="input-field" type="date" aria-label="Appointment date">
+                        <select id="desk-time" class="input-field" aria-label="Time slot">
+                            <option>10:00 AM - 11:00 AM</option><option>11:00 AM - 12:00 PM</option><option>2:00 PM - 3:00 PM</option><option>4:00 PM - 5:00 PM</option>
+                        </select>
+                        <button class="btn primary" id="desk-book-button">Book Appointment</button>
+                    </div>
+                </div>
+                <div class="glass panel-padding-large">
+                    <h3 class="management-heading" data-i18n="doctor_management">Doctor Management</h3>
+                    <p class="text-muted management-copy" data-i18n="failsafe_hint">Use failsafe routing if a doctor becomes unavailable.</p>
+                    
+                    {% for doc in doctors %}
+                    <div class="doc-list-item">
+                        <div>
+                            <h4 class="doctor-name">{{ doc.user.full_name }}</h4>
+                            <p class="text-muted text-tiny">{{ doc.department }} | Quota: {{ doc.daily_quota }}</p>
+                        </div>
+                        <div>
+                            {% if doc.is_available %}
+                                <button class="btn-small btn-failsafe failsafe-button" data-doctor-id="{{ doc.user_id }}" data-doctor-name="{{ doc.user.full_name }}" data-i18n="trigger_failsafe">Trigger Failsafe</button>
+                            {% else %}
+                                <span class="text-alert-small" data-i18n="unavailable">Unavailable</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dashboardTranslations = {
+            en: {logout:'Logout', hospital_desk:'Hospital Desk', opd_queue:'OPD Queue & Appointments', active_queue:'Active Queue', no_appointments_hospital:'No appointments found for this hospital.', priority_alerts:'Priority Alerts', acknowledge:'Acknowledge', doctor_management:'Doctor Management', failsafe_hint:'Use failsafe routing if a doctor becomes unavailable.', trigger_failsafe:'Trigger Failsafe', unavailable:'Unavailable'},
+            te: {logout:'లాగ్ అవుట్', hospital_desk:'హాస్పిటల్ డెస్క్', opd_queue:'OPD క్యూ మరియు అపాయింట్‌మెంట్‌లు', active_queue:'క్రియాశీల క్యూ', no_appointments_hospital:'ఈ ఆసుపత్రికి అపాయింట్‌మెంట్‌లు లేవు.', priority_alerts:'ప్రాధాన్యత అలర్ట్‌లు', acknowledge:'గుర్తించండి', doctor_management:'వైద్యుల నిర్వహణ', failsafe_hint:'వైద్యుడు అందుబాటులో లేనప్పుడు ఫెయిల్‌సేఫ్ రూటింగ్ ఉపయోగించండి.', trigger_failsafe:'ఫెయిల్‌సేఫ్ ప్రారంభించండి', unavailable:'అందుబాటులో లేదు'},
+            ta: {logout:'வெளியேறு', hospital_desk:'மருத்துவமனை மேசை', opd_queue:'OPD வரிசை மற்றும் சந்திப்புகள்', active_queue:'செயலில் உள்ள வரிசை', no_appointments_hospital:'இந்த மருத்துவமனைக்கு சந்திப்புகள் இல்லை.', priority_alerts:'முன்னுரிமை எச்சரிக்கைகள்', acknowledge:'ஏற்கவும்', doctor_management:'மருத்துவர் நிர்வாகம்', failsafe_hint:'மருத்துவர் கிடைக்காதபோது பாதுகாப்பு வழித்தடத்தை பயன்படுத்தவும்.', trigger_failsafe:'பாதுகாப்பு வழித்தடத்தை தொடங்கவும்', unavailable:'கிடைக்கவில்லை'}
+        };
+        const languageOrder = ['en', 'te', 'ta'];
+        let dashboardLanguage = 'en';
+        function toggleDashboardLanguage() {
+            dashboardLanguage = languageOrder[(languageOrder.indexOf(dashboardLanguage) + 1) % languageOrder.length];
+            document.querySelectorAll('[data-i18n]').forEach(element => { element.innerText = dashboardTranslations[dashboardLanguage][element.dataset.i18n]; });
+            document.getElementById('language-switch').innerText = {en:'తెలుగు', te:'தமிழ்', ta:'English'}[dashboardLanguage];
+        }
+        async function ackAlert(id) {
+            await fetch('/api/ai/alerts/acknowledge', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ alert_id: id })
+            });
+            window.location.reload();
+        }
+        async function triggerFailsafe(doctorId, docName) {
+            if(confirm(`WARNING: Are you sure you want to trigger the Failsafe for ${docName}? All their patients will be re-routed.`)) {
+                try {
+                    const response = await fetch('/api/appointments/failsafe', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ doctor_id: doctorId })
+                    });
+                    
+                    const data = await response.json();
+                    if(data.success) {
+                        alert(`✅ ${data.message}`);
+                        window.location.reload();
+                    } else {
+                        alert(`❌ Failed: ${data.message}`);
+                    }
+                } catch (e) {
+                    alert("An error occurred.");
+                }
+            }
+        }
+
+        async function revertFailsafe(appointmentId) {
+            if (!confirm('Return this appointment to its original doctor?')) return;
+            try {
+                const response = await fetch('/api/appointments/failsafe/revert', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ appointment_id: appointmentId })
+                });
+                const data = await response.json();
+                alert(data.message || 'Failsafe update complete.');
+                if (data.success) window.location.reload();
+            } catch (error) {
+                alert('Could not revert failsafe.');
+            }
+        }
+
+        document.querySelectorAll('.revert-button').forEach(button => {
+            button.addEventListener('click', () => revertFailsafe(button.dataset.appointmentId));
+        });
+        document.querySelectorAll('.acknowledge-button').forEach(button => {
+            button.addEventListener('click', () => ackAlert(button.dataset.alertId));
+        });
+        document.querySelectorAll('.failsafe-button').forEach(button => {
+            button.addEventListener('click', () => triggerFailsafe(button.dataset.doctorId, button.dataset.doctorName));
+        });
+        document.querySelectorAll('.alert-card').forEach(card => {
+            const text = card.innerText.toLowerCase();
+            if (text.includes('emergency')) {
+                card.classList.add('emergency-card');
+                const appointmentId = card.dataset.appointmentId;
+                if (appointmentId) {
+                    const button = document.createElement('button');
+                    button.className = 'btn-small mt-alert';
+                    button.innerText = 'Contact confirmed';
+                    button.onclick = () => confirmEmergency(appointmentId);
+                    card.appendChild(button);
+                }
+            }
+        });
+        async function confirmEmergency(appointmentId) {
+            const response = await fetch('/api/appointments/emergency/confirm', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({appointment_id: appointmentId})});
+            const data = await response.json(); alert(data.message || 'Emergency updated.'); if (data.success) window.location.reload();
+        }
+        document.getElementById('desk-date').value = new Date().toISOString().slice(0, 10);
+        document.getElementById('desk-book-button')?.addEventListener('click', async () => {
+            const response = await fetch('/api/appointments/book', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({booking_type:'offline', patient_name:document.getElementById('desk-patient-name').value.trim(), phone_number:document.getElementById('desk-patient-phone').value.trim(), doctor_id:document.getElementById('desk-doctor').value, appointment_date:document.getElementById('desk-date').value, time_slot:document.getElementById('desk-time').value})});
+            const data = await response.json();
+            if (data.success && data.new_patient) alert(`New patient created. Patient ID: ${data.patient_id}`);
+            else alert(data.message || 'Booking updated.');
+            if (data.success) window.location.reload();
+        });
+    </script>
+</body>
+</html>
